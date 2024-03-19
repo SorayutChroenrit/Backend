@@ -1,16 +1,23 @@
+require("dotenv").config();
+
 const express = require("express");
 const app = express();
 const mysql = require("mysql2");
 const cors = require("cors");
 
+console.log(process.env.DB_HOST);
+console.log(process.env.DB_USER);
+console.log(process.env.DB_PASSWORD);
+console.log(process.env.DB_DATABASE);
+
 app.use(cors());
 app.use(express.json());
 
 const db = mysql.createConnection({
-  user: "root",
-  host: "localhost",
-  password: "root",
-  database: "Mango Storage",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
 });
 
 // GET route to fetch UserAccount data
@@ -114,24 +121,20 @@ app.post("/createProduct", (req, res) => {
 
 // POST route to Order a new Product
 app.post("/createOrder", (req, res) => {
-  const { OrderID, Quantity, P_Name, LastUpdated } = req.body; // Destructure required fields from the request body
+  const { OrderID, Quantity, P_Name, LastUpdated } = req.body;
 
   const sql =
-    "INSERT INTO Product (P_ID, Quantity, P_Name, LastUpdated) VALUES (?, ?, ?, ?)"; // Define the SQL query
+    "INSERT INTO `Order` (OrderID, Quantity, P_Name, LastUpdated) VALUES (?, ?, ?, ?)";
 
-  db.query(
-    sql,
-    [OrderID, Quantity, P_Name, LastUpdated], // Bind parameters to the query
-    (err, result) => {
-      if (err) {
-        console.error("Error inserting product:", err);
-        return res.status(500).json({ error: "Internal server error" });
-      }
-
-      console.log("Product created successfully");
-      res.status(200).json({ message: "Product created successfully" });
+  db.query(sql, [OrderID, Quantity, P_Name, LastUpdated], (err, result) => {
+    if (err) {
+      console.error("Error inserting order:", err);
+      return res.status(500).json({ error: "Internal server error" });
     }
-  );
+
+    console.log("Order created successfully");
+    res.status(200).json({ message: "Order created successfully" });
+  });
 });
 
 app.put("/updateUserAccount", (req, res) => {
@@ -213,20 +216,21 @@ app.put("/updateProduct", (req, res) => {
   });
 });
 
+// PUT route to update an Order
 app.put("/updateOrder", (req, res) => {
-  const { OrderID, OrderDate, UserID, Total_Number, Status } = req.body;
+  const { OrderID, Total_Number, Status } = req.body;
 
-  let updateQuery = "UPDATE UserAccount SET ";
+  let updateQuery = "UPDATE `Order` SET ";
   let params = [];
 
   if (Total_Number !== undefined) {
     updateQuery += "Total_Number = ?, ";
-    params.push(username);
+    params.push(Total_Number);
   }
 
   if (Status !== undefined) {
     updateQuery += "Status = ?, ";
-    params.push(password);
+    params.push(Status);
   }
 
   // Remove the last comma and space from the query string
@@ -241,12 +245,12 @@ app.put("/updateOrder", (req, res) => {
   // Execute the update query
   db.query(updateQuery, params, (err, result) => {
     if (err) {
-      console.error("Error updating UserAccount:", err);
+      console.error("Error updating order:", err);
       return res.status(500).json({ error: "Internal server error" });
     }
 
     // Send success response if the update was successful
-    res.status(200).json({ message: "UserAccount updated successfully" });
+    res.status(200).json({ message: "Order updated successfully" });
   });
 });
 
