@@ -1,14 +1,13 @@
-require("dotenv").config();
-
 const express = require("express");
 const app = express();
 const mysql = require("mysql2");
 const cors = require("cors");
-
-console.log(process.env.DB_HOST);
-console.log(process.env.DB_USER);
-console.log(process.env.DB_PASSWORD);
-console.log(process.env.DB_DATABASE);
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+const jwt = require("jsonwebtoken");
+const token = "secret";
+const jwtBlacklist = [];
+require("dotenv").config();
 
 app.use(cors());
 app.use(express.json());
@@ -77,26 +76,103 @@ app.get("/UserAccount/:id", (req, res) => {
 // POST route to create a new UserAccount
 app.post("/createUserAccount", (req, res) => {
   const { username, password, position } = req.body;
-  console.log("Received request to create UserAccount:", {
-    username,
-    password,
-    position,
+
+  bcrypt.hash(password, saltRounds, function (err, hash) {
+    if (err) {
+      console.error("Error hashing password:", err);
+      return res.status(500).send("Error creating user account");
+    }
+
+    console.log("Received request to create UserAccount:", {
+      username,
+      password: hash, // Store the hashed password
+      position,
+    });
+
+    db.query(
+      "INSERT INTO UserAccount (username, password, Position) VALUES (?, ?, ?)",
+      [username, hash, position], // Use the hashed password
+      (err, result) => {
+        if (err) {
+          console.log(err);
+          return res.status(500).json({ error: "Internal server error" });
+        } else {
+          return res
+            .status(200)
+            .json({ message: "UserAccount created successfully" });
+        }
+      }
+    );
   });
+});
+
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res
+      .status(400)
+      .json({ error: "Username and password are required" });
+  }
 
   db.query(
-    "INSERT INTO UserAccount (username, password, Position ) VALUES (?, ?, ?)",
-    [username, password, position],
-    (err, result) => {
+    "SELECT * FROM UserAccount WHERE username = ?",
+    [username],
+    (err, results) => {
       if (err) {
-        console.log(err);
-        res.status(500).json({ error: "Internal server error" });
-      } else {
-        res.status(200).json({ message: "UserAccount created successfully" });
+        console.error(err);
+        return res.status(500).json({ error: "Internal server error" });
       }
+
+      if (results.length === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const user = results[0];
+
+      bcrypt.compare(password, user.password, (err, isLogin) => {
+        if (err) {
+          console.error("Error comparing passwords:", err);
+          return res.status(500).json({ error: "Internal server error" });
+        }
+        if (isLogin) {
+          const token = jwt.sign({ username: user.username }, "secret", {
+            expiresIn: "1hr",
+          });
+
+          return res.status(200).json({ status: "ok", token });
+        } else {
+          return res
+            .status(401)
+            .json({ status: "error", message: "Login Failed" });
+        }
+      });
     }
   );
 });
 
+app.post("/Authen", (req, res) => {
+  try {
+    const token = req.headers.authorization.split(" ")[1];
+    var decoded = jwt.verify(token, "secret");
+    res.json({ status: "ok", decoded });
+  } catch (error) {
+    res.json({ status: "error", message: error.message });
+  }
+});
+app.post("/logout", (req, res) => {
+  const token =
+    req.headers.authorization && req.headers.authorization.split(" ")[1]; // Extract token from Authorization header
+
+  if (!token) {
+    return res.status(401).json({ message: "Token not provided" });
+  }
+
+  // Blacklist the token by adding it to the jwtBlacklist array
+  jwtBlacklist.push(token);
+
+  res.sendStatus(200);
+});
 // POST route to create a new Product
 app.post("/createProduct", (req, res) => {
   const { P_ID, Quantity, P_Name, LastUpdated } = req.body; // Destructure required fields from the request body
