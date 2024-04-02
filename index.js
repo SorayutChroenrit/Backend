@@ -38,9 +38,9 @@ app.get("/UserAccount", (req, res) => {
   });
 });
 
-// GET route to fetch Product
-app.get("/Product", (req, res) => {
-  db.query("SELECT * FROM Product", (err, result) => {
+// GET route to fetch UserAccount data
+app.get("/Storage", (req, res) => {
+  db.query("SELECT * FROM Storage", (err, result) => {
     if (err) {
       console.log(err);
       res.status(500).json({ error: "Internal server error" });
@@ -50,9 +50,36 @@ app.get("/Product", (req, res) => {
   });
 });
 
+app.get("/Product", (req, res) => {
+  db.query(
+    "SELECT p.*, COUNT(s.Serial_No) AS Quantity FROM Product p LEFT JOIN SerialNumber s ON p.P_ID = s.P_ID GROUP BY p.P_ID",
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ error: "Internal server error" });
+      } else {
+        result.forEach((product) => {
+          db.query(
+            "UPDATE Product SET Quantity = ? WHERE P_ID = ?",
+            [product.Quantity, product.P_ID],
+            (updateErr, updateResult) => {
+              if (updateErr) {
+                console.log(updateErr);
+              }
+            }
+          );
+        });
+
+        res.send(result);
+      }
+    }
+  );
+});
+
 app.get("/SerialNumber", (req, res) => {
   db.query(
-    "SELECT SerialNumber.*, Product.P_Name, Product.image FROM SerialNumber INNER JOIN Product ON SerialNumber.P_ID = Product.P_ID",
+    "SELECT SerialNumber.*, Product.P_Name, Product.image, Storage.Location FROM SerialNumber INNER JOIN Product ON SerialNumber.P_ID = Product.P_ID LEFT OUTER JOIN Storage ON SerialNumber.S_ID = Storage.S_ID",
+
     (err, result) => {
       if (err) {
         console.log(err);
@@ -298,20 +325,24 @@ app.post("/createProduct", upload.single("image"), (req, res) => {
 
 // POST route to Order a new Order
 app.post("/createOrder", (req, res) => {
-  const { OrderID, Total_Number, Status } = req.body;
+  const { OrderID, Order_date, Empno, Total_Quantity, Status } = req.body;
 
   const sql =
-    "INSERT INTO `Order` (OrderID, Total_Number, Status) VALUES (?, ?, ?)";
+    "INSERT INTO `Order` (OrderID, Order_date, Empno, Total_Quantity, Status ) VALUES (?, ?, ?, ?, ?)";
 
-  db.query(sql, [OrderID, Total_Number, Status], (err, result) => {
-    if (err) {
-      console.error("Error inserting order:", err);
-      return res.status(500).json({ error: "Internal server error" });
+  db.query(
+    sql,
+    [OrderID, Order_date, Empno, Total_Quantity, Status],
+    (err, result) => {
+      if (err) {
+        console.error("Error inserting order:", err);
+        return res.status(500).json({ error: "Internal server error" });
+      }
+
+      console.log("Order created successfully");
+      res.status(200).json({ message: "Order created successfully" });
     }
-
-    console.log("Order created successfully");
-    res.status(200).json({ message: "Order created successfully" });
-  });
+  );
 });
 
 app.put("/updateUserAccount", (req, res) => {
@@ -396,21 +427,28 @@ app.put("/updateProduct", upload.single("image"), (req, res) => {
 
 // PUT route to update an Order
 app.put("/updateOrder", (req, res) => {
-  const { OrderID, Total_Number, Status } = req.body;
+  const { OrderID, Order_date, Empno, Total_Quantity, Status } = req.body;
 
   let updateQuery = "UPDATE `Order` SET ";
   let params = [];
 
-  if (Total_Number !== undefined) {
-    updateQuery += "Total_Number = ?, ";
-    params.push(Total_Number);
+  if (Order_date !== undefined) {
+    updateQuery += "Order_date = ?, ";
+    params.push(Order_date);
   }
 
+  if (Empno !== undefined) {
+    updateQuery += "Empno = ?, ";
+    params.push(Empno);
+  }
+  if (Total_Quantity !== undefined) {
+    updateQuery += "Total_Quantity = ?, ";
+    params.push(Status);
+  }
   if (Status !== undefined) {
     updateQuery += "Status = ?, ";
     params.push(Status);
   }
-
   updateQuery = updateQuery.slice(0, -2);
 
   updateQuery += " WHERE OrderID = ?";
