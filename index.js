@@ -178,21 +178,36 @@ app.post("/login", (req, res) => {
 
       const user = results[0];
 
+      // Log user details for debugging
+      console.log("User retrieved from database:", user);
+
       bcrypt.compare(password, user.password, (err, isLogin) => {
         if (err) {
           return res.status(500).json({ error: "Internal server error" });
         }
         if (isLogin) {
+          // Log successful login for debugging
+          console.log("Login successful");
+
           // Generate JWT token with user data and set expiration to 1 hour from now
-          const token = jwt.sign({ username: user.username }, jwttoken, {
-            expiresIn: "1h",
-          });
+          const token = jwt.sign(
+            { username: user.username, position: user.Position },
+            jwttoken,
+            {
+              expiresIn: "1h",
+            }
+          );
 
           // Set JWT token as a cookie in the response
           res.cookie("jwt", token, { httpOnly: true });
 
-          return res.status(200).json({ status: "ok", token });
+          // Send response with token and user position
+          return res
+            .status(200)
+            .json({ status: "ok", position: user.Position, token });
         } else {
+          // Log failed login attempts for debugging
+          console.log("Login failed");
           return res
             .status(401)
             .json({ status: "error", message: "Login Failed" });
