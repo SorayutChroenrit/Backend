@@ -5,12 +5,19 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const jwt = require("jsonwebtoken");
-const token = "secret";
+const multer = require("multer");
+const Path2D = require("path");
 const jwtBlacklist = [];
+const cookieParser = require("cookie-parser");
+
 require("dotenv").config();
 
+app.use(cookieParser());
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public"));
+
+const jwttoken = "secret";
 
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
@@ -30,6 +37,7 @@ app.get("/UserAccount", (req, res) => {
     }
   });
 });
+
 // GET route to fetch Product
 app.get("/Product", (req, res) => {
   db.query("SELECT * FROM Product", (err, result) => {
@@ -41,6 +49,21 @@ app.get("/Product", (req, res) => {
     }
   });
 });
+
+app.get("/SerialNumber", (req, res) => {
+  db.query(
+    "SELECT SerialNumber.*, Product.P_Name, Product.image FROM SerialNumber INNER JOIN Product ON SerialNumber.P_ID = Product.P_ID",
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ error: "Internal server error" });
+      } else {
+        res.send(result);
+      }
+    }
+  );
+});
+
 // GET route to fetch Product
 app.get("/Order", (req, res) => {
   db.query("SELECT * FROM `Order`", (err, result) => {
@@ -52,25 +75,22 @@ app.get("/Order", (req, res) => {
     }
   });
 });
+
 // GET route to fetch UserAccount data by ID
-app.get("/UserAccount/:id", (req, res) => {
+app.get("/UserAccount", (req, res) => {
   const UserAccountId = req.params.id;
-  db.query(
-    "SELECT * FROM UserAccount WHERE id = ?",
-    [UserAccountId],
-    (err, result) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json({ error: "Internal server error" });
+  db.query("SELECT * FROM UserAccount ", [UserAccountId], (err, result) => {
+    if (err) {
+      console.log(err);
+      res.status(500).json({ error: "Internal server error" });
+    } else {
+      if (result.length === 0) {
+        res.status(404).json({ error: "UserAccount not found" });
       } else {
-        if (result.length === 0) {
-          res.status(404).json({ error: "UserAccount not found" });
-        } else {
-          res.send(result[0]); // Assuming UserAccount ID is unique, so returning the first result
-        }
+        res.send(result[0]);
       }
     }
-  );
+  });
 });
 
 // POST route to create a new UserAccount
@@ -85,13 +105,13 @@ app.post("/createUserAccount", (req, res) => {
 
     console.log("Received request to create UserAccount:", {
       username,
-      password: hash, // Store the hashed password
+      password: hash,
       position,
     });
 
     db.query(
       "INSERT INTO UserAccount (username, password, Position) VALUES (?, ?, ?)",
-      [username, hash, position], // Use the hashed password
+      [username, hash, position],
       (err, result) => {
         if (err) {
           console.log(err);
@@ -106,6 +126,34 @@ app.post("/createUserAccount", (req, res) => {
   });
 });
 
+app.post("/createSerial", (req, res) => {
+  const { Serial_No, P_ID, S_ID, LastUpdated } = req.body;
+
+  // Check if Serial_No is missing or null
+  if (!Serial_No) {
+    return res.status(400).json({ error: "Serial_No is required" });
+  }
+
+  // Proceed with the database query
+  db.query(
+    "INSERT INTO SerialNumber (Serial_No, P_ID, S_ID, LastUpdated) VALUES (?, ?, ?, ?)",
+    [Serial_No, P_ID, S_ID, LastUpdated],
+    (err, result) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ error: "Failed to create serial number" });
+      } else {
+        return res
+          .status(200)
+          .json({ message: "SerialNumber created successfully" });
+      }
+    }
+  );
+});
+
+// POST /login route to handle user login
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -132,13 +180,16 @@ app.post("/login", (req, res) => {
 
       bcrypt.compare(password, user.password, (err, isLogin) => {
         if (err) {
-          console.error("Error comparing passwords:", err);
           return res.status(500).json({ error: "Internal server error" });
         }
         if (isLogin) {
-          const token = jwt.sign({ username: user.username }, "secret", {
-            expiresIn: "1hr",
+          // Generate JWT token with user data and set expiration to 1 hour from now
+          const token = jwt.sign({ username: user.username }, jwttoken, {
+            expiresIn: "1h",
           });
+
+          // Set JWT token as a cookie in the response
+          res.cookie("jwt", token, { httpOnly: true });
 
           return res.status(200).json({ status: "ok", token });
         } else {
@@ -151,15 +202,34 @@ app.post("/login", (req, res) => {
   );
 });
 
-app.post("/Authen", (req, res) => {
+app.post("/Authen", (req, res, next) => {
   try {
-    const token = req.headers.authorization.split(" ")[1];
-    var decoded = jwt.verify(token, "secret");
-    res.json({ status: "ok", decoded });
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log("No token found in the request");
+      return res.status(401).json({ status: "error", message: "Unauthorized" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    console.log("Received token on server:", token);
+
+    // Verify JWT token
+    jwt.verify(token, jwttoken, (err, decoded) => {
+      if (err) {
+        console.error("Error verifying token:", err);
+        return res
+          .status(401)
+          .json({ status: "error", message: "Token verification failed" });
+      }
+      console.log("Decoded token:", decoded);
+      res.json({ status: "ok", decoded });
+    });
   } catch (error) {
-    res.json({ status: "error", message: error.message });
+    console.error("Error handling request:", error);
+    res.status(500).json({ status: "error", message: "Internal server error" });
   }
 });
+
 app.post("/logout", (req, res) => {
   const token =
     req.headers.authorization && req.headers.authorization.split(" ")[1]; // Extract token from Authorization header
@@ -171,38 +241,54 @@ app.post("/logout", (req, res) => {
   // Blacklist the token by adding it to the jwtBlacklist array
   jwtBlacklist.push(token);
 
+  // Clear the cookie on the client-side
+  res.clearCookie("jwt");
+
   res.sendStatus(200);
 });
-// POST route to create a new Product
-app.post("/createProduct", (req, res) => {
-  const { P_ID, Quantity, P_Name, LastUpdated } = req.body; // Destructure required fields from the request body
 
-  const sql =
-    "INSERT INTO Product (P_ID, Quantity, P_Name, LastUpdated) VALUES (?, ?, ?, ?)"; // Define the SQL query
-
-  db.query(
-    sql,
-    [P_ID, Quantity, P_Name, LastUpdated], // Bind parameters to the query
-    (err, result) => {
-      if (err) {
-        console.error("Error inserting product:", err);
-        return res.status(500).json({ error: "Internal server error" });
-      }
-
-      console.log("Product created successfully");
-      res.status(200).json({ message: "Product created successfully" });
-    }
-  );
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "public/images");
+  },
+  filename: (req, file, cb) => {
+    cb(
+      null,
+      file.fieldname + "_" + Date.now() + Path2D.extname(file.originalname)
+    );
+  },
 });
 
-// POST route to Order a new Product
+const upload = multer({
+  storage: storage,
+});
+
+// POST route to create a new Product
+app.post("/createProduct", upload.single("image"), (req, res) => {
+  const { P_ID, Quantity, P_Name } = req.body;
+  const image = req.file ? req.file.filename : null; // Check if file is uploaded and get filename
+  const sql =
+    "INSERT INTO Product (P_ID, Quantity, P_Name, image) VALUES (?, ?, ?, ?)";
+
+  db.query(sql, [P_ID, Quantity, P_Name, image], (err, result) => {
+    if (err) {
+      console.error("Error inserting product:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    console.log("Product created successfully");
+    res.status(200).json({ message: "Product created successfully" });
+  });
+});
+
+// POST route to Order a new Order
 app.post("/createOrder", (req, res) => {
-  const { OrderID, Quantity, P_Name, LastUpdated } = req.body;
+  const { OrderID, Total_Number, Status } = req.body;
 
   const sql =
-    "INSERT INTO `Order` (OrderID, Quantity, P_Name, LastUpdated) VALUES (?, ?, ?, ?)";
+    "INSERT INTO `Order` (OrderID, Total_Number, Status) VALUES (?, ?, ?)";
 
-  db.query(sql, [OrderID, Quantity, P_Name, LastUpdated], (err, result) => {
+  db.query(sql, [OrderID, Total_Number, Status], (err, result) => {
     if (err) {
       console.error("Error inserting order:", err);
       return res.status(500).json({ error: "Internal server error" });
@@ -255,8 +341,9 @@ app.put("/updateUserAccount", (req, res) => {
 });
 
 // PUT route to update a Product
-app.put("/updateProduct", (req, res) => {
-  const { P_ID, P_Name, Quantity, LastUpdated } = req.body;
+app.put("/updateProduct", upload.single("image"), (req, res) => {
+  const { P_ID, P_Name, Quantity } = req.body;
+  const image = req.file ? req.file.filename : null;
 
   let updateQuery = "UPDATE Product SET ";
   let params = [];
@@ -271,23 +358,23 @@ app.put("/updateProduct", (req, res) => {
     params.push(Quantity);
   }
 
-  // Remove the last comma and space from the query string
+  if (image !== null) {
+    updateQuery += "image = ?, ";
+    params.push(image);
+  }
+
   updateQuery = updateQuery.slice(0, -2);
 
-  // Add the WHERE clause to specify the Product ID
   updateQuery += " WHERE P_ID = ?";
 
-  // Add the Product ID parameter
   params.push(P_ID);
 
-  // Execute the update query
   db.query(updateQuery, params, (err, result) => {
     if (err) {
       console.error("Error updating product:", err);
       return res.status(500).json({ error: "Internal server error" });
     }
 
-    // Send success response if the update was successful
     res.status(200).json({ message: "Product updated successfully" });
   });
 });
@@ -309,13 +396,10 @@ app.put("/updateOrder", (req, res) => {
     params.push(Status);
   }
 
-  // Remove the last comma and space from the query string
   updateQuery = updateQuery.slice(0, -2);
 
-  // Add the WHERE clause to specify the OrderID
   updateQuery += " WHERE OrderID = ?";
 
-  // Add the OrderID parameter
   params.push(OrderID);
 
   // Execute the update query
@@ -330,8 +414,56 @@ app.put("/updateOrder", (req, res) => {
   });
 });
 
+app.put("/updateSerialNumber", (req, res) => {
+  const { Serial_No, P_ID, S_ID, LastUpdated } = req.body;
+
+  console.log("Received Data:", req.body);
+
+  let updateQuery = "UPDATE SerialNumber SET ";
+  let params = [];
+
+  if (Serial_No !== undefined) {
+    updateQuery += "Serial_No = ?, ";
+    params.push(Serial_No);
+  }
+
+  if (P_ID !== undefined) {
+    updateQuery += "P_ID = ?, ";
+    params.push(P_ID);
+  }
+
+  if (S_ID !== undefined) {
+    updateQuery += "S_ID = ?, ";
+    params.push(S_ID);
+  }
+  if (LastUpdated !== undefined) {
+    updateQuery += "LastUpdated = ?, ";
+    params.push(LastUpdated);
+  }
+
+  // Remove the last comma and space from the query string
+  updateQuery = updateQuery.slice(0, -2);
+
+  // Add the WHERE clause to specify the UserAccount ID
+  updateQuery += " WHERE Serial_No = ?";
+
+  // Add the UserAccount ID parameter
+  params.push(Serial_No);
+
+  // Execute the update query
+  db.query(updateQuery, params, (err, result) => {
+    if (err) {
+      console.error("Error updating SerialNumber:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    // Send success response if the update was successful
+    res.status(200).json({ message: "SerialNumber updated successfully" });
+  });
+});
+
 // DELETE route to delete an UserAccount by ID
-app.delete("/delete/:id", (req, res) => {
+app.delete("/deleteUser/:id", (req, res) => {
   const id = req.params.id;
   db.query("DELETE FROM UserAccount WHERE id = ?", id, (err, result) => {
     if (err) {
@@ -370,6 +502,28 @@ app.delete("/deleteOrder/:OrderID", (req, res) => {
     }
   });
 });
+
+// DELETE route to delete an Item by Serial_No
+app.delete("/deleteItem/:Serial_No", (req, res) => {
+  const Serial_No = req.params.Serial_No;
+  console.log("Serial_No received:", Serial_No); // Log the Serial_No value
+
+  // Rest of your code to delete the item
+  db.query(
+    "DELETE FROM SerialNumber WHERE Serial_No = ?",
+    Serial_No,
+    (err, result) => {
+      if (err) {
+        console.error("Error deleting item:", err);
+        res.status(500).json({ error: "Internal server error" });
+      } else {
+        console.log("Item deleted successfully:", result);
+        res.status(200).json({ message: "Item deleted successfully" });
+      }
+    }
+  );
+});
+
 // Define a route for the root endpoint
 app.get("/", (req, res) => {
   res.send("Welcome to the Mango Storage System!");
