@@ -19,7 +19,12 @@ const s3 = new AWS.S3({
 require("dotenv").config();
 
 app.use(cookieParser());
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://sorayutchroenrit.github.io/MangoStorage/",
+    credentials: true, // Include if you're using cookies or other credentials
+  })
+);
 app.use(express.json());
 app.use(express.static("public"));
 
