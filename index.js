@@ -19,15 +19,13 @@ const s3 = new AWS.S3({
 require("dotenv").config();
 
 app.use(cookieParser());
-app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 const corsOptions = {
-  origin: "https://sorayutchroenrit.github.io",
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  origin: "http://localhost:3000",
+  credentials: true,
+  optionSuccessStatus: 200,
 };
-
 app.use(cors(corsOptions));
 
 const jwttoken = "secret";
