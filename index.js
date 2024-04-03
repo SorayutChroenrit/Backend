@@ -338,6 +338,18 @@ app.post("/createProduct", upload.single("image"), (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
       }
       console.log("Product created successfully");
+      // Set CORS headers in the response
+      res.setHeader(
+        "Access-Control-Allow-Origin",
+        "https://sorayutchroenrit.github.io"
+      );
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization"
+      );
+      res.setHeader("Access-Control-Allow-Credentials", "true"); // Include if you're using cookies
+      // Send response
       res.status(200).json({ message: "Product created successfully" });
     });
   });
