@@ -22,7 +22,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.static("public"));
 const corsOptions = {
-  origin: "http://localhost:3000",
+  origin: "https://sorayutchroenrit.github.io/MangoStorage/",
   credentials: true,
   optionSuccessStatus: 200,
 };
