@@ -10,10 +10,12 @@ const Path2D = require("path");
 const jwtBlacklist = [];
 const cookieParser = require("cookie-parser");
 const AWS = require("aws-sdk");
+
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 });
+
 require("dotenv").config();
 
 app.use(cookieParser());
@@ -300,9 +302,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({
-  storage: storage,
-});
+const upload = multer({ storage: storage });
 
 // POST route to create a new Product
 app.post("/createProduct", upload.single("image"), (req, res) => {
