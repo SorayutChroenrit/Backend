@@ -341,7 +341,7 @@ app.post("/createProduct", upload.single("image"), (req, res) => {
       // Set CORS headers in the response
       res.setHeader(
         "Access-Control-Allow-Origin",
-        "https://sorayutchroenrit.github.io"
+        "https://sorayutchroenrit.github.io/MangoStorage/"
       );
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
       res.setHeader(
