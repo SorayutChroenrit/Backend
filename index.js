@@ -9,7 +9,11 @@ const multer = require("multer");
 const Path2D = require("path");
 const jwtBlacklist = [];
 const cookieParser = require("cookie-parser");
-
+const AWS = require("aws-sdk");
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+});
 require("dotenv").config();
 
 app.use(cookieParser());
@@ -303,41 +307,40 @@ const upload = multer({
 // POST route to create a new Product
 app.post("/createProduct", upload.single("image"), (req, res) => {
   const { P_ID, Quantity, P_Name } = req.body;
-  const image = req.file ? req.file.filename : null; // Check if file is uploaded and get filename
-  const sql =
-    "INSERT INTO Product (P_ID, Quantity, P_Name, image) VALUES (?, ?, ?, ?)";
+  const image = req.file; // File object from multer
 
-  db.query(sql, [P_ID, Quantity, P_Name, image], (err, result) => {
+  if (!image) {
+    return res.status(400).json({ error: "Image file is required" });
+  }
+
+  const params = {
+    Bucket: process.env.AWS_S3_BUCKET_NAME,
+    Key: `images/${image.originalname}`, // Set the key (path) where the file will be stored in S3
+    Body: image.buffer, // Set the file content
+    ACL: "public-read", // Set ACL to make the uploaded file publicly accessible
+  };
+
+  // Upload the image to S3
+  s3.upload(params, (err, data) => {
     if (err) {
-      console.error("Error inserting product:", err);
+      console.error("Error uploading image to S3:", err);
       return res.status(500).json({ error: "Internal server error" });
     }
 
-    console.log("Product created successfully");
-    res.status(200).json({ message: "Product created successfully" });
-  });
-});
+    console.log("Image uploaded to S3 successfully:", data.Location);
 
-// POST route to Order a new Order
-app.post("/createOrder", (req, res) => {
-  const { OrderID, Order_date, Empno, Total_Quantity, Status } = req.body;
-
-  const sql =
-    "INSERT INTO `Order` (OrderID, Order_date, Empno, Total_Quantity, Status ) VALUES (?, ?, ?, ?, ?)";
-
-  db.query(
-    sql,
-    [OrderID, Order_date, Empno, Total_Quantity, Status],
-    (err, result) => {
-      if (err) {
-        console.error("Error inserting order:", err);
+    // Now you can save the product details along with the S3 image URL to your database
+    const sql =
+      "INSERT INTO Product (P_ID, Quantity, P_Name, image) VALUES (?, ?, ?, ?)";
+    db.query(sql, [P_ID, Quantity, P_Name, data.Location], (dbErr, result) => {
+      if (dbErr) {
+        console.error("Error inserting product:", dbErr);
         return res.status(500).json({ error: "Internal server error" });
       }
-
-      console.log("Order created successfully");
-      res.status(200).json({ message: "Order created successfully" });
-    }
-  );
+      console.log("Product created successfully");
+      res.status(200).json({ message: "Product created successfully" });
+    });
+  });
 });
 
 app.put("/updateUserAccount", (req, res) => {
