@@ -22,6 +22,13 @@ app.use(cookieParser());
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
+const corsOptions = {
+  origin: "https://sorayutchroenrit.github.io",
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
 
 const jwttoken = "secret";
 
