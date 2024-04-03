@@ -5,7 +5,8 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const jwt = require("jsonwebtoken");
-const multer = require("multer");
+const aws = require("aws-sdk");
+const multerS3 = require("multer-s3");
 const Path2D = require("path");
 const jwtBlacklist = [];
 const cookieParser = require("cookie-parser");
@@ -296,8 +297,22 @@ const storage = multer.diskStorage({
   },
 });
 
+const s3 = new aws.S3({
+  // Configure AWS S3 bucket details
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
+
 const upload = multer({
-  storage: storage,
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.AWS_BUCKET_NAME,
+    acl: "public-read", // Set ACL to allow public read access to uploaded files
+    key: function (req, file, cb) {
+      cb(null, Date.now().toString() + "-" + file.originalname);
+    },
+  }),
 });
 
 // POST route to create a new Product
