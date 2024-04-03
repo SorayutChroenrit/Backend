@@ -19,12 +19,7 @@ app.use(express.static("public"));
 
 const jwttoken = "secret";
 
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-});
+const db = mysql.createConnection(process.env.DATABASE_URL);
 
 // GET route to fetch UserAccount data
 app.get("/UserAccount", (req, res) => {
@@ -582,7 +577,7 @@ app.get("/", (req, res) => {
   res.send("Welcome to the Mango Storage System!");
 });
 
-const PORT = 3001; // Change the port number
-app.listen(PORT, () => {
+const PORT = 3001;
+app.listen(process.env.PORT || PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
