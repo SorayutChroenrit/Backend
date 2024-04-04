@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
-const mysql = require("mysql2");
 const cors = require("cors");
+const mysql = require("mysql2");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const jwt = require("jsonwebtoken");
@@ -11,6 +11,19 @@ const jwtBlacklist = [];
 const cookieParser = require("cookie-parser");
 const AWS = require("aws-sdk");
 
+// Custom CORS middleware
+const customCorsMiddleware = (req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Max-Age", "1800");
+  res.setHeader("Access-Control-Allow-Headers", "content-type");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "PUT, POST, GET, DELETE, PATCH, OPTIONS"
+  );
+  next();
+};
+
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -19,7 +32,7 @@ const s3 = new AWS.S3({
 require("dotenv").config();
 
 app.use(cookieParser());
-app.use(cors());
+app.use(customCorsMiddleware);
 app.use(express.json());
 app.use(express.static("public"));
 
