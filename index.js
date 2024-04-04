@@ -30,7 +30,6 @@ const s3 = new AWS.S3({
 });
 
 require("dotenv").config();
-
 app.use(cookieParser());
 app.use(customCorsMiddleware);
 app.use(express.json());
