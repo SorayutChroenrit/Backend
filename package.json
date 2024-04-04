@@ -11,8 +11,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.540.0",
-    "@cyclic.sh/dynamodb": "^0.0.35",
     "aws-sdk": "^2.1592.0",
     "bcrpyt": "^2.0.0",
     "bcrypt": "^5.1.1",
