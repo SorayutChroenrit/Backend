@@ -11,8 +11,11 @@ const jwtBlacklist = [];
 const cookieParser = require("cookie-parser");
 
 require("dotenv").config();
-
-app.use(cors());
+const corsOptions = {
+  origin: "http://localhost:5173",
+  optionsSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.static("public"));
