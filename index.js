@@ -21,18 +21,6 @@ const jwttoken = "secret";
 
 const db = mysql.createConnection(process.env.DATABASE_URL);
 
-router.get("/", function (req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, OPTIONS, PUT, PATCH, DELETE"
-  ); // If needed
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "X-Requested-With,content-type"
-  );
-  res.setHeader("Access-Control-Allow-Credentials", true);
-});
 // GET route to fetch UserAccount data
 app.get("/UserAccount", (req, res) => {
   db.query("SELECT * FROM UserAccount", (err, result) => {
