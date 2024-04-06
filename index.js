@@ -21,44 +21,17 @@ const jwttoken = "secret";
 
 const db = mysql.createConnection(process.env.DATABASE_URL);
 
-// Export your serverless function
-module.exports = async (req, res) => {
-  // Set CORS headers in the response
+// Set CORS headers for all responses
+app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, OPTIONS, PUT, DELETE"
   );
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  next();
+});
 
-  // Check the HTTP method of the request
-  if (req.method === "OPTIONS") {
-    // Respond to preflight requests
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: "Preflight request handled" }),
-    };
-  }
-
-  // Handle other HTTP requests (e.g., GET, POST)
-  if (req.method === "GET") {
-    // Your GET request logic here
-  } else if (req.method === "POST") {
-    // Your POST request logic here
-  } else {
-    // Handle unsupported HTTP methods
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: "Method Not Allowed" }),
-    };
-  }
-
-  // Return your response
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: "Success" }),
-  };
-};
 // GET route to fetch UserAccount data
 app.get("/UserAccount", (req, res) => {
   db.query("SELECT * FROM UserAccount", (err, result) => {
