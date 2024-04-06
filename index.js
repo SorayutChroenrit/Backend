@@ -21,17 +21,6 @@ const jwttoken = "secret";
 
 const db = mysql.createConnection(process.env.DATABASE_URL);
 
-// Set CORS headers for all responses
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, OPTIONS, PUT, DELETE"
-  );
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  next();
-});
-
 // GET route to fetch UserAccount data
 app.get("/UserAccount", (req, res) => {
   db.query("SELECT * FROM UserAccount", (err, result) => {
