@@ -5,9 +5,7 @@ const mysql = require("mysql2");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const jwt = require("jsonwebtoken");
-const AWS = require("aws-sdk");
 const multer = require("multer");
-const multerS3 = require("multer-s3");
 const Path2D = require("path");
 const jwtBlacklist = [];
 const cookieParser = require("cookie-parser");
@@ -20,15 +18,6 @@ app.use(express.json());
 app.use(express.static("public"));
 
 const jwttoken = "secret";
-
-AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
-});
-
-// Create an S3 client using AWS.S3() constructor
-const s3 = new AWS.S3();
 
 const db = mysql.createConnection(process.env.DATABASE_URL);
 
@@ -295,32 +284,9 @@ app.post("/logout", (req, res) => {
   res.sendStatus(200);
 });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "public/images");
-  },
-  filename: (req, file, cb) => {
-    cb(
-      null,
-      file.fieldname + "_" + Date.now() + Path2D.extname(file.originalname)
-    );
-  },
-});
-
 const upload = multer({
-  storage: multerS3({
-    s3: s3,
-    bucket: "cyclic-lazy-blue-butterfly-suit-ap-south-1",
-    acl: "public-read",
-    metadata: function (req, file, cb) {
-      cb(null, { fieldName: file.fieldname });
-    },
-    key: function (req, file, cb) {
-      cb(null, Date.now().toString() + "-" + file.originalname);
-    },
-  }),
+  storage: storage,
 });
-// POST route to create a new Product
 app.post("/createProduct", upload.single("image"), (req, res) => {
   const { P_ID, Quantity, P_Name } = req.body;
   const image = req.file; // File object from multer
