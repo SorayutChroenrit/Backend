@@ -284,9 +284,7 @@ app.post("/logout", (req, res) => {
   res.sendStatus(200);
 });
 
-const upload = multer({
-  storage: storage,
-});
+const upload = multer({});
 app.post("/createProduct", upload.single("image"), (req, res) => {
   const { P_ID, Quantity, P_Name } = req.body;
   const image = req.file; // File object from multer
