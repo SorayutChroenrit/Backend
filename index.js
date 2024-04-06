@@ -97,22 +97,25 @@ app.get("/Order", (req, res) => {
     }
   });
 });
-
 // GET route to fetch UserAccount data by ID
-app.get("/UserAccount", (req, res) => {
+app.get("/UserAccount/:id", (req, res) => {
   const UserAccountId = req.params.id;
-  db.query("SELECT * FROM UserAccount ", [UserAccountId], (err, result) => {
-    if (err) {
-      console.log(err);
-      res.status(500).json({ error: "Internal server error" });
-    } else {
-      if (result.length === 0) {
-        res.status(404).json({ error: "UserAccount not found" });
+  db.query(
+    "SELECT * FROM UserAccount WHERE id = ?",
+    [UserAccountId],
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ error: "Internal server error" });
       } else {
-        res.send(result[0]);
+        if (result.length === 0) {
+          res.status(404).json({ error: "UserAccount not found" });
+        } else {
+          res.send(result[0]);
+        }
       }
     }
-  });
+  );
 });
 
 // POST route to create a new UserAccount
