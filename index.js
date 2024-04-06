@@ -219,7 +219,7 @@ app.post("/login", (req, res) => {
             { username: user.username, position: user.Position },
             jwttoken,
             {
-              expiresIn: "1h",
+              expiresIn: "5h",
             }
           );
 
