@@ -284,7 +284,20 @@ app.post("/logout", (req, res) => {
   res.sendStatus(200);
 });
 
-const upload = multer({});
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "public/images");
+  },
+  filename: (req, file, cb) => {
+    cb(
+      null,
+      file.fieldname + "_" + Date.now() + Path2D.extname(file.originalname)
+    );
+  },
+});
+const upload = multer({
+  storage: storage,
+});
 app.post("/createProduct", upload.single("image"), (req, res) => {
   const { P_ID, Quantity, P_Name } = req.body;
   const image = req.file; // File object from multer
