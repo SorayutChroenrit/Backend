@@ -469,8 +469,9 @@ app.put("/updateProduct", upload.single("image"), (req, res) => {
 });
 
 // PUT route to update an Order
-app.put("/updateOrder", (req, res) => {
-  const { OrderID, Order_date, Empno, Total_Quantity, Status } = req.body;
+app.put("/updateOrder/:OrderID", (req, res) => {
+  const OrderID = req.params.OrderID;
+  const { Order_date, Empno, Total_Quantity, Status } = req.body;
 
   let updateQuery = "UPDATE `Order` SET ";
   let params = [];
@@ -484,18 +485,20 @@ app.put("/updateOrder", (req, res) => {
     updateQuery += "Empno = ?, ";
     params.push(Empno);
   }
+
   if (Total_Quantity !== undefined) {
     updateQuery += "Total_Quantity = ?, ";
-    params.push(Status);
+    params.push(Total_Quantity);
   }
+
   if (Status !== undefined) {
     updateQuery += "Status = ?, ";
     params.push(Status);
   }
-  updateQuery = updateQuery.slice(0, -2);
+
+  updateQuery = updateQuery.slice(0, -2); // Remove the last comma and space
 
   updateQuery += " WHERE OrderID = ?";
-
   params.push(OrderID);
 
   // Execute the update query
@@ -511,7 +514,26 @@ app.put("/updateOrder", (req, res) => {
 });
 
 app.put("/updateSerialNumber", (req, res) => {
-  const { Serial_No, P_ID, S_ID, LastUpdated } = req.body;
+  const { Serial_No, P_ID, S_ID } = req.body;
+
+  // Get the current date and time in the local time zone of Bangkok
+  const currentTimestamp = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Bangkok",
+  });
+
+  // Convert the timestamp to a Date object
+  const currentDate = new Date(currentTimestamp);
+
+  // Extract date and time components
+  const year = currentDate.getFullYear();
+  const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+  const day = String(currentDate.getDate()).padStart(2, "0");
+  const hours = String(currentDate.getHours()).padStart(2, "0");
+  const minutes = String(currentDate.getMinutes()).padStart(2, "0");
+  const seconds = String(currentDate.getSeconds()).padStart(2, "0");
+
+  // Format the date and time
+  const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
   console.log("Received Data:", req.body);
 
@@ -532,18 +554,18 @@ app.put("/updateSerialNumber", (req, res) => {
     updateQuery += "S_ID = ?, ";
     params.push(S_ID);
   }
-  if (LastUpdated !== undefined) {
-    updateQuery += "LastUpdated = ?, ";
-    params.push(LastUpdated);
-  }
+
+  // Update LastUpdated with the formatted timestamp
+  updateQuery += "LastUpdated = ?, ";
+  params.push(formattedTimestamp);
 
   // Remove the last comma and space from the query string
   updateQuery = updateQuery.slice(0, -2);
 
-  // Add the WHERE clause to specify the UserAccount ID
+  // Add the WHERE clause to specify the Serial_No
   updateQuery += " WHERE Serial_No = ?";
 
-  // Add the UserAccount ID parameter
+  // Add the Serial_No parameter
   params.push(Serial_No);
 
   // Execute the update query
@@ -585,18 +607,40 @@ app.delete("/deleteProduct/:P_ID", (req, res) => {
     }
   });
 });
+
 // DELETE route to delete an Order by ID
 app.delete("/deleteOrder/:OrderID", (req, res) => {
   const OrderID = req.params.OrderID;
-  db.query("DELETE FROM `Order` WHERE OrderID = ?", OrderID, (err, result) => {
-    if (err) {
-      console.log(err);
-      res.status(500).json({ error: "Internal server error" });
-    } else {
-      console.log(result);
-      res.status(200).json({ message: " Order deleted successfully" });
+
+  // First, delete associated rows from the withdrawallist table
+  db.query(
+    "DELETE FROM withdrawallist WHERE OrderID = ?",
+    OrderID,
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ error: "Internal server error" });
+      } else {
+        console.log(result);
+        // Once associated rows are deleted, delete the order from the Order table
+        db.query(
+          "DELETE FROM `Order` WHERE OrderID = ?",
+          OrderID,
+          (err, result) => {
+            if (err) {
+              console.log(err);
+              res.status(500).json({ error: "Internal server error" });
+            } else {
+              console.log(result);
+              res.status(200).json({
+                message: "Order and associated data deleted successfully",
+              });
+            }
+          }
+        );
+      }
     }
-  });
+  );
 });
 
 // DELETE route to delete an Item by Serial_No
