@@ -86,17 +86,21 @@ app.get("/SerialNumber", (req, res) => {
   );
 });
 
-// GET route to fetch Product
+// GET route to fetch Order
 app.get("/Order", (req, res) => {
-  db.query("SELECT * FROM `Order`", (err, result) => {
-    if (err) {
-      console.log(err);
-      res.status(500).json({ error: "Internal server error" });
-    } else {
-      res.send(result);
+  db.query(
+    "SELECT o.*, u.username, s.Serial_No, s.P_ID, s.S_ID, s.LastUpdated, p.Quantity, p.P_Name, p.image FROM `Order` o JOIN WithdrawalList w ON o.OrderID = w.OrderID JOIN SerialNumber s ON w.Serial_No = s.Serial_No JOIN Product p ON s.P_ID = p.P_ID JOIN UserAccount u ON o.Empno = u.id",
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ error: "Internal server error" });
+      } else {
+        res.send(result);
+      }
     }
-  });
+  );
 });
+
 // GET route to fetch UserAccount data by ID
 app.get("/UserAccount/:id", (req, res) => {
   const UserAccountId = req.params.id;
@@ -151,8 +155,43 @@ app.post("/createUserAccount", (req, res) => {
   });
 });
 
+app.post("/createOrder", (req, res) => {
+  const { OrderID, Order_date, Empno, Total_Quantity, Status } = req.body;
+
+  db.query(
+    "INSERT INTO `Order` (OrderID, Order_date, Empno, Total_Quantity, Status) VALUES (?, ?, ?, ?, ?)",
+    [OrderID, Order_date, Empno, Total_Quantity, Status],
+    (err, result) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Failed to create Order" });
+      } else {
+        return res.status(200).json({ message: "Order created successfully" });
+      }
+    }
+  );
+});
+// Get the current date and time in the local time zone of Bangkok
+const currentTimestamp = new Date().toLocaleString("en-US", {
+  timeZone: "Asia/Bangkok",
+});
+
+// Convert the timestamp to a Date object
+const currentDate = new Date(currentTimestamp);
+
+// Extract date and time components
+const year = currentDate.getFullYear();
+const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+const day = String(currentDate.getDate()).padStart(2, "0");
+const hours = String(currentDate.getHours()).padStart(2, "0");
+const minutes = String(currentDate.getMinutes()).padStart(2, "0");
+const seconds = String(currentDate.getSeconds()).padStart(2, "0");
+
+// Format the date and time
+const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
 app.post("/createSerial", (req, res) => {
-  const { Serial_No, P_ID, S_ID, LastUpdated } = req.body;
+  const { Serial_No, P_ID, S_ID } = req.body;
 
   // Check if Serial_No is missing or null
   if (!Serial_No) {
@@ -162,7 +201,7 @@ app.post("/createSerial", (req, res) => {
   // Proceed with the database query
   db.query(
     "INSERT INTO SerialNumber (Serial_No, P_ID, S_ID, LastUpdated) VALUES (?, ?, ?, ?)",
-    [Serial_No, P_ID, S_ID, LastUpdated],
+    [Serial_No, P_ID, S_ID, formattedTimestamp],
     (err, result) => {
       if (err) {
         console.error(err);
@@ -173,6 +212,27 @@ app.post("/createSerial", (req, res) => {
         return res
           .status(200)
           .json({ message: "SerialNumber created successfully" });
+      }
+    }
+  );
+});
+
+app.post("/WithdrawalList", (req, res) => {
+  const { OrderID, Serial_No } = req.body;
+  // Proceed with the database query
+  db.query(
+    "INSERT INTO WithdrawalList (OrderID, Serial_No) VALUES (?, ?)",
+    [OrderID, Serial_No],
+    (err, result) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ error: "Failed to create serial number" });
+      } else {
+        return res
+          .status(200)
+          .json({ message: "WithdrawalList created successfully" });
       }
     }
   );
@@ -298,24 +358,26 @@ const storage = multer.diskStorage({
     );
   },
 });
+
 const upload = multer({
   storage: storage,
 });
+
 app.post("/createProduct", upload.single("image"), (req, res) => {
+  console.log("Request body:", req.body);
+  console.log("Uploaded file:", req.file);
+
   const { P_ID, Quantity, P_Name } = req.body;
-  const image = req.file; // File object from multer
+  const image = req.file.filename; // File object from multer
 
-  if (!image) {
-    return res.status(400).json({ error: "Image file is required" });
-  }
+  console.log("Image filename:", image);
 
-  // Extract S3 URL from the uploaded file
-  const imageUrl = image.location; // location is provided by multer-s3
-
-  // Now you can save the product details along with the S3 image URL to your database
   const sql =
     "INSERT INTO Product (P_ID, Quantity, P_Name, image) VALUES (?, ?, ?, ?)";
-  db.query(sql, [P_ID, Quantity, P_Name, imageUrl], (dbErr, result) => {
+  console.log("SQL query:", sql);
+  console.log("SQL parameters:", [P_ID, Quantity, P_Name, image]);
+
+  db.query(sql, [P_ID, Quantity, P_Name, image], (dbErr, result) => {
     if (dbErr) {
       console.error("Error inserting product:", dbErr);
       return res.status(500).json({ error: "Internal server error" });
