@@ -6,7 +6,7 @@ const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
-const Path2D = require("path");
+const path = require("path");
 const jwtBlacklist = [];
 const cookieParser = require("cookie-parser");
 
@@ -124,7 +124,7 @@ app.get("/UserAccount/:id", (req, res) => {
 
 // POST route to create a new UserAccount
 app.post("/createUserAccount", (req, res) => {
-  const { username, password, position } = req.body;
+  const { id, username, password, position } = req.body;
 
   bcrypt.hash(password, saltRounds, function (err, hash) {
     if (err) {
@@ -133,14 +133,15 @@ app.post("/createUserAccount", (req, res) => {
     }
 
     console.log("Received request to create UserAccount:", {
+      id,
       username,
       password: hash,
       position,
     });
 
     db.query(
-      "INSERT INTO UserAccount (username, password, Position) VALUES (?, ?, ?)",
-      [username, hash, position],
+      "INSERT INTO UserAccount (id, username, password, Position) VALUES (?, ?, ?, ?)",
+      [id, username, hash, position],
       (err, result) => {
         if (err) {
           console.log(err);
@@ -354,7 +355,7 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     cb(
       null,
-      file.fieldname + "_" + Date.now() + Path2D.extname(file.originalname)
+      file.fieldname + "_" + Date.now() + path.extname(file.originalname)
     );
   },
 });
