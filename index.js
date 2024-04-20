@@ -32,7 +32,28 @@ app.get("/UserAccount", (req, res) => {
     }
   });
 });
-
+// GET route to fetch UserAccount data
+app.get("/Dept", (req, res) => {
+  db.query("SELECT * FROM `Dept`", (err, result) => {
+    if (err) {
+      console.log(err);
+      res.status(500).json({ error: "Internal server error" });
+    } else {
+      res.send(result);
+    }
+  });
+});
+// GET route to fetch WithdrawalList data
+app.get("/WithdrawalList", (req, res) => {
+  db.query("SELECT * FROM `WithdrawalList`", (err, result) => {
+    if (err) {
+      console.log(err);
+      res.status(500).json({ error: "Internal server error" });
+    } else {
+      res.send(result);
+    }
+  });
+});
 // GET route to fetch UserAccount data
 app.get("/Storage", (req, res) => {
   db.query("SELECT * FROM Storage", (err, result) => {
@@ -89,7 +110,7 @@ app.get("/SerialNumber", (req, res) => {
 // GET route to fetch Order
 app.get("/Order", (req, res) => {
   db.query(
-    "SELECT o.*, u.username, s.Serial_No, s.P_ID, s.S_ID, s.LastUpdated, p.Quantity, p.P_Name, p.image FROM `Order` o JOIN WithdrawalList w ON o.OrderID = w.OrderID JOIN SerialNumber s ON w.Serial_No = s.Serial_No JOIN Product p ON s.P_ID = p.P_ID JOIN UserAccount u ON o.Empno = u.id",
+    "SELECT o.*, u.fname, s.Serial_No, s.P_ID, s.S_ID, s.LastUpdated, p.Quantity, p.P_Name, p.image FROM `Order` o JOIN WithdrawalList w ON o.OrderID = w.OrderID JOIN SerialNumber s ON w.Serial_No = s.Serial_No JOIN Product p ON s.P_ID = p.P_ID JOIN UserAccount u ON o.Empno = u.id",
     (err, result) => {
       if (err) {
         console.log(err);
@@ -124,7 +145,7 @@ app.get("/UserAccount/:id", (req, res) => {
 
 // POST route to create a new UserAccount
 app.post("/createUserAccount", (req, res) => {
-  const { id, username, password, position } = req.body;
+  const { id, username, fname, lname, password, position } = req.body;
 
   bcrypt.hash(password, saltRounds, function (err, hash) {
     if (err) {
@@ -135,13 +156,15 @@ app.post("/createUserAccount", (req, res) => {
     console.log("Received request to create UserAccount:", {
       id,
       username,
+      fname,
+      lname,
       password: hash,
       position,
     });
 
     db.query(
-      "INSERT INTO UserAccount (id, username, password, Position) VALUES (?, ?, ?, ?)",
-      [id, username, hash, position],
+      "INSERT INTO UserAccount (id, username, fname, lname, password, Position) VALUES (?, ?, ?, ?, ?, ?)",
+      [id, username, fname, lname, hash, position],
       (err, result) => {
         if (err) {
           console.log(err);
@@ -172,6 +195,7 @@ app.post("/createOrder", (req, res) => {
     }
   );
 });
+
 // Get the current date and time in the local time zone of Bangkok
 const currentTimestamp = new Date().toLocaleString("en-US", {
   timeZone: "Asia/Bangkok",
@@ -192,6 +216,25 @@ const seconds = String(currentDate.getSeconds()).padStart(2, "0");
 const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
 app.post("/createSerial", (req, res) => {
+  // Get the current date and time in the local time zone of Bangkok
+  const currentTimestamp = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Bangkok",
+  });
+
+  // Convert the timestamp to a Date object
+  const currentDate = new Date(currentTimestamp);
+
+  // Extract date and time components
+  const year = currentDate.getFullYear();
+  const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+  const day = String(currentDate.getDate()).padStart(2, "0");
+  const hours = String(currentDate.getHours()).padStart(2, "0");
+  const minutes = String(currentDate.getMinutes()).padStart(2, "0");
+  const seconds = String(currentDate.getSeconds()).padStart(2, "0");
+
+  // Format the date and time
+  const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
   const { Serial_No, P_ID, S_ID } = req.body;
 
   // Check if Serial_No is missing or null
@@ -275,12 +318,12 @@ app.post("/login", (req, res) => {
           // Log successful login for debugging
           console.log("Login successful");
 
-          // Generate JWT token with user data and set expiration to 1 hour from now
+          // Generate JWT token with user data and set expiration to 5 hour from now
           const token = jwt.sign(
             { username: user.username, position: user.Position },
             jwttoken,
             {
-              expiresIn: "5h",
+              expiresIn: "1h",
             }
           );
 
@@ -389,7 +432,7 @@ app.post("/createProduct", upload.single("image"), (req, res) => {
 });
 
 app.put("/updateUserAccount", (req, res) => {
-  const { username, password, position, id } = req.body;
+  const { username, fname, lname, position, id, deptno, address } = req.body;
 
   let updateQuery = "UPDATE UserAccount SET ";
   let params = [];
@@ -399,9 +442,24 @@ app.put("/updateUserAccount", (req, res) => {
     params.push(username);
   }
 
-  if (password !== undefined) {
-    updateQuery += "password = ?, ";
-    params.push(password);
+  if (fname !== undefined) {
+    updateQuery += "fname = ?, ";
+    params.push(fname);
+  }
+
+  if (lname !== undefined) {
+    updateQuery += "lname = ?, ";
+    params.push(lname);
+  }
+
+  if (deptno !== undefined) {
+    updateQuery += "deptno = ?, ";
+    params.push(deptno);
+  }
+
+  if (address !== undefined) {
+    updateQuery += "address = ?, ";
+    params.push(address);
   }
 
   if (position !== undefined) {
@@ -643,22 +701,34 @@ app.delete("/deleteOrder/:OrderID", (req, res) => {
   );
 });
 
-// DELETE route to delete an Item by Serial_No
 app.delete("/deleteItem/:Serial_No", (req, res) => {
   const Serial_No = req.params.Serial_No;
   console.log("Serial_No received:", Serial_No); // Log the Serial_No value
 
-  // Rest of your code to delete the item
+  // Delete related rows in the withdrawallist table first
   db.query(
-    "DELETE FROM SerialNumber WHERE Serial_No = ?",
+    "DELETE FROM withdrawallist WHERE Serial_No = ?",
     Serial_No,
     (err, result) => {
       if (err) {
-        console.error("Error deleting item:", err);
+        console.error("Error deleting related items:", err);
         res.status(500).json({ error: "Internal server error" });
       } else {
-        console.log("Item deleted successfully:", result);
-        res.status(200).json({ message: "Item deleted successfully" });
+        console.log("Related items deleted successfully:", result);
+        // Proceed to delete the item from SerialNumber table
+        db.query(
+          "DELETE FROM SerialNumber WHERE Serial_No = ?",
+          Serial_No,
+          (err, result) => {
+            if (err) {
+              console.error("Error deleting item:", err);
+              res.status(500).json({ error: "Internal server error" });
+            } else {
+              console.log("Item deleted successfully:", result);
+              res.status(200).json({ message: "Item deleted successfully" });
+            }
+          }
+        );
       }
     }
   );
