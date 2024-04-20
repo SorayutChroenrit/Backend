@@ -22,7 +22,7 @@ const jwttoken = "secret";
 const db = mysql.createConnection(process.env.DATABASE_URL);
 
 // GET route to fetch UserAccount data
-app.get("/UserAccount", (req, res) => {
+app.get("/api/UserAccount", (req, res) => {
   db.query("SELECT * FROM UserAccount", (err, result) => {
     if (err) {
       console.log(err);
@@ -33,7 +33,7 @@ app.get("/UserAccount", (req, res) => {
   });
 });
 // GET route to fetch UserAccount data
-app.get("/Dept", (req, res) => {
+app.get("/api/Dept", (req, res) => {
   db.query("SELECT * FROM `Dept`", (err, result) => {
     if (err) {
       console.log(err);
@@ -44,7 +44,7 @@ app.get("/Dept", (req, res) => {
   });
 });
 // GET route to fetch WithdrawalList data
-app.get("/WithdrawalList", (req, res) => {
+app.get("/api/WithdrawalList", (req, res) => {
   db.query("SELECT * FROM `WithdrawalList`", (err, result) => {
     if (err) {
       console.log(err);
@@ -55,7 +55,7 @@ app.get("/WithdrawalList", (req, res) => {
   });
 });
 // GET route to fetch UserAccount data
-app.get("/Storage", (req, res) => {
+app.get("/api/Storage", (req, res) => {
   db.query("SELECT * FROM Storage", (err, result) => {
     if (err) {
       console.log(err);
@@ -66,7 +66,7 @@ app.get("/Storage", (req, res) => {
   });
 });
 
-app.get("/Product", (req, res) => {
+app.get("/api/Product", (req, res) => {
   db.query(
     "SELECT p.*, COUNT(s.Serial_No) AS Quantity FROM Product p LEFT JOIN SerialNumber s ON p.P_ID = s.P_ID GROUP BY p.P_ID",
     (err, result) => {
@@ -92,7 +92,7 @@ app.get("/Product", (req, res) => {
   );
 });
 
-app.get("/SerialNumber", (req, res) => {
+app.get("/api/SerialNumber", (req, res) => {
   db.query(
     "SELECT SerialNumber.*, Product.P_Name, Product.image, Storage.Location FROM SerialNumber INNER JOIN Product ON SerialNumber.P_ID = Product.P_ID LEFT OUTER JOIN Storage ON SerialNumber.S_ID = Storage.S_ID",
 
@@ -108,7 +108,7 @@ app.get("/SerialNumber", (req, res) => {
 });
 
 // GET route to fetch Order
-app.get("/Order", (req, res) => {
+app.get("/api/Order", (req, res) => {
   db.query(
     "SELECT o.*, u.fname, s.Serial_No, s.P_ID, s.S_ID, s.LastUpdated, p.Quantity, p.P_Name, p.image FROM `Order` o JOIN WithdrawalList w ON o.OrderID = w.OrderID JOIN SerialNumber s ON w.Serial_No = s.Serial_No JOIN Product p ON s.P_ID = p.P_ID JOIN UserAccount u ON o.Empno = u.id",
     (err, result) => {
@@ -123,7 +123,7 @@ app.get("/Order", (req, res) => {
 });
 
 // GET route to fetch UserAccount data by ID
-app.get("/UserAccount/:id", (req, res) => {
+app.get("/api/UserAccount/:id", (req, res) => {
   const UserAccountId = req.params.id;
   db.query(
     "SELECT * FROM UserAccount WHERE id = ?",
@@ -144,7 +144,7 @@ app.get("/UserAccount/:id", (req, res) => {
 });
 
 // POST route to create a new UserAccount
-app.post("/createUserAccount", (req, res) => {
+app.post("/api/createUserAccount", (req, res) => {
   const { id, username, fname, lname, password, position } = req.body;
 
   bcrypt.hash(password, saltRounds, function (err, hash) {
@@ -179,7 +179,7 @@ app.post("/createUserAccount", (req, res) => {
   });
 });
 
-app.post("/createOrder", (req, res) => {
+app.post("/api/createOrder", (req, res) => {
   const { OrderID, Order_date, Empno, Total_Quantity, Status } = req.body;
 
   db.query(
@@ -215,7 +215,7 @@ const seconds = String(currentDate.getSeconds()).padStart(2, "0");
 // Format the date and time
 const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
-app.post("/createSerial", (req, res) => {
+app.post("/api/createSerial", (req, res) => {
   // Get the current date and time in the local time zone of Bangkok
   const currentTimestamp = new Date().toLocaleString("en-US", {
     timeZone: "Asia/Bangkok",
@@ -261,7 +261,7 @@ app.post("/createSerial", (req, res) => {
   );
 });
 
-app.post("/WithdrawalList", (req, res) => {
+app.post("/api/WithdrawalList", (req, res) => {
   const { OrderID, Serial_No } = req.body;
   // Proceed with the database query
   db.query(
@@ -283,7 +283,7 @@ app.post("/WithdrawalList", (req, res) => {
 });
 
 // POST /login route to handle user login
-app.post("/login", (req, res) => {
+app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -346,7 +346,7 @@ app.post("/login", (req, res) => {
   );
 });
 
-app.post("/Authen", (req, res, next) => {
+app.post("/api/Authen", (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -374,7 +374,7 @@ app.post("/Authen", (req, res, next) => {
   }
 });
 
-app.post("/logout", (req, res) => {
+app.post("/api/logout", (req, res) => {
   const token =
     req.headers.authorization && req.headers.authorization.split(" ")[1]; // Extract token from Authorization header
 
@@ -407,7 +407,7 @@ const upload = multer({
   storage: storage,
 });
 
-app.post("/createProduct", upload.single("image"), (req, res) => {
+app.post("/api/createProduct", upload.single("image"), (req, res) => {
   console.log("Request body:", req.body);
   console.log("Uploaded file:", req.file);
 
@@ -431,7 +431,7 @@ app.post("/createProduct", upload.single("image"), (req, res) => {
   });
 });
 
-app.put("/updateUserAccount", (req, res) => {
+app.put("/api/updateUserAccount", (req, res) => {
   const { username, fname, lname, position, id, deptno, address } = req.body;
 
   let updateQuery = "UPDATE UserAccount SET ";
@@ -488,7 +488,7 @@ app.put("/updateUserAccount", (req, res) => {
 });
 
 // PUT route to update a Product
-app.put("/updateProduct", upload.single("image"), (req, res) => {
+app.put("/api/updateProduct", upload.single("image"), (req, res) => {
   const { P_ID, P_Name, Quantity } = req.body;
   const image = req.file ? req.file.filename : null;
 
@@ -527,7 +527,7 @@ app.put("/updateProduct", upload.single("image"), (req, res) => {
 });
 
 // PUT route to update an Order
-app.put("/updateOrder/:OrderID", (req, res) => {
+app.put("/api/updateOrder/:OrderID", (req, res) => {
   const OrderID = req.params.OrderID;
   const { Order_date, Empno, Total_Quantity, Status } = req.body;
 
@@ -571,7 +571,7 @@ app.put("/updateOrder/:OrderID", (req, res) => {
   });
 });
 
-app.put("/updateSerialNumber", (req, res) => {
+app.put("/api/updateSerialNumber", (req, res) => {
   const { Serial_No, P_ID, S_ID } = req.body;
 
   // Get the current date and time in the local time zone of Bangkok
@@ -639,7 +639,7 @@ app.put("/updateSerialNumber", (req, res) => {
 });
 
 // DELETE route to delete an UserAccount by ID
-app.delete("/deleteUser/:id", (req, res) => {
+app.delete("/api/deleteUser/:id", (req, res) => {
   const id = req.params.id;
   db.query("DELETE FROM UserAccount WHERE id = ?", id, (err, result) => {
     if (err) {
@@ -653,7 +653,7 @@ app.delete("/deleteUser/:id", (req, res) => {
 });
 
 // DELETE route to delete an Product by ID
-app.delete("/deleteProduct/:P_ID", (req, res) => {
+app.delete("/api/deleteProduct/:P_ID", (req, res) => {
   const P_ID = req.params.P_ID;
   db.query("DELETE FROM Product WHERE P_ID = ?", P_ID, (err, result) => {
     if (err) {
@@ -667,7 +667,7 @@ app.delete("/deleteProduct/:P_ID", (req, res) => {
 });
 
 // DELETE route to delete an Order by ID
-app.delete("/deleteOrder/:OrderID", (req, res) => {
+app.delete("/api/deleteOrder/:OrderID", (req, res) => {
   const OrderID = req.params.OrderID;
 
   // First, delete associated rows from the withdrawallist table
@@ -701,7 +701,7 @@ app.delete("/deleteOrder/:OrderID", (req, res) => {
   );
 });
 
-app.delete("/deleteItem/:Serial_No", (req, res) => {
+app.delete("/api/deleteItem/:Serial_No", (req, res) => {
   const Serial_No = req.params.Serial_No;
   console.log("Serial_No received:", Serial_No); // Log the Serial_No value
 
