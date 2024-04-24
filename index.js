@@ -327,13 +327,18 @@ app.post("/api/login", (req, res) => {
             }
           );
 
-          // Set JWT token as a cookie in the response
+          // Set cookies for username, position, and token
+          res.cookie("username", user.username, { httpOnly: true });
+          res.cookie("position", user.Position, { httpOnly: true });
           res.cookie("jwt", token, { httpOnly: true });
 
           // Send response with token and user position
-          return res
-            .status(200)
-            .json({ status: "ok", position: user.Position, token });
+          return res.status(200).json({
+            status: "ok",
+            username: user.username,
+            position: user.Position,
+            token,
+          });
         } else {
           // Log failed login attempts for debugging
           console.log("Login failed");
@@ -385,8 +390,9 @@ app.post("/api/logout", (req, res) => {
   // Blacklist the token by adding it to the jwtBlacklist array
   jwtBlacklist.push(token);
 
-  // Clear the cookie on the client-side
   res.clearCookie("jwt");
+  res.clearCookie("username");
+  res.clearCookie("position");
 
   res.sendStatus(200);
 });
